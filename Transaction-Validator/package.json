@@ -1,0 +1,25 @@
+{
+  "name": "transaction-validator",
+  "version": "1.0.0",
+  "description": "Microservicio crítico de validación de transacciones",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "prom-client": "^14.2.0",
+    "winston": "^3.10.0",
+    "@opentelemetry/api": "^1.4.0",
+    "@opentelemetry/sdk-node": "^0.39.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.37.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.39.1",
+    "@opentelemetry/resources": "^1.13.0",
+    "@opentelemetry/semantic-conventions": "^1.13.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "supertest": "^6.0.0"
+  }
+}

@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # Reverse Proxy / Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - monitoring
+    depends_on:
+      - app_blue
+      - app_green
+
+  # Blue Environment
+  app_blue:
+    build: ./Transaction-Validator
+    environment:
+      - STABLE_MODE=false
+      - COLOR=blue
+      - LOG_FILE=logs/blue.log
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    volumes:
+      - app_logs:/app/logs
+    networks:
+      - monitoring
+    expose:
+      - "3000"
+
+  # Green Environment
+  app_green:
+    build: ./Transaction-Validator
+    environment:
+      - STABLE_MODE=true
+      - COLOR=green
+      - LOG_FILE=logs/green.log
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    volumes:
+      - app_logs:/app/logs
+    networks:
+      - monitoring
+    expose:
+      - "3000"
+
+  # --- OBSERVABILITY STACK ---
+
+  # 1. METRICS: Prometheus
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  # 2. VISUALIZATION: Grafana
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true # Optional: easier access for demo
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+
+  # 3. HOST METRICS: Node Exporter
+  node-exporter:
+    image: prom/node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - monitoring
+
+  # 4. LOGS: Loki
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+
+  # 5. LOGS AGENT: Promtail
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./monitoring/promtail/config.yml:/etc/promtail/config.yml
+      - app_logs:/var/log/app
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring
+    depends_on:
+      - loki
+
+  # 6. TRACING: Jaeger
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Web UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+
+volumes:
+  app_logs:

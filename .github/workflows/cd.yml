@@ -1,0 +1,60 @@
+name: CD Pipeline - Blue/Green Deployment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        working-directory: ./Transaction-Validator
+        run: npm ci
+
+      - name: Run Tests
+        working-directory: ./Transaction-Validator
+        run: npm test
+
+      - name: Build Docker Image
+        run: docker build -t transaction-validator:${{ github.sha }} ./Transaction-Validator
+
+      - name: Save Docker Image
+        run: docker save transaction-validator:${{ github.sha }} > transaction-validator.tar
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image
+          path: transaction-validator.tar
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+
+      - name: Load Docker Image
+        run: docker load < transaction-validator.tar
+
+      - name: Deploy Blue/Green Strategy
+        run: |
+          node ./scripts/deploy.js ${{ github.sha }}
+        env:
+          # In a real scenario, these would be secrets or env vars
+          DEPLOY_ENV: production
