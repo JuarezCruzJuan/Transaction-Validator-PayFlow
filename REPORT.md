@@ -182,7 +182,59 @@ Basado en los datos recolectados, se propone el siguiente roadmap para los próx
 
 ---
 
-## 6. Conclusión
+## 6. Evidencias Técnicas
+
+Esta sección presenta las pruebas funcionales de la implementación del sistema de observabilidad y despliegue.
+
+### A. Dashboards de Métricas (Grafana)
+El dashboard principal unifica métricas de infraestructura (Node Exporter) y de negocio (App Metrics).
+
+> **Instrucciones para el evaluador**: 
+> 1. Acceder a `http://localhost:3001` (admin/admin).
+> 2. Ver dashboard "Transaction Validator Overview".
+
+*(Espacio para captura de pantalla del Dashboard mostrando CPU, Memoria y Requests/seg)*
+![Dashboard General](https://via.placeholder.com/800x400?text=Insertar+Captura+Grafana+Dashboard)
+
+### B. Logs Estructurados (Loki + Grafana)
+Visualización de logs en formato JSON, permitiendo filtrado por `level`, `service` y `transactionId`.
+
+> **Query en Grafana Explore**: `{job="transaction-validator"} |= "error"`
+
+*(Espacio para captura de pantalla del panel de Logs)*
+![Logs Estructurados](https://via.placeholder.com/800x200?text=Insertar+Captura+Loki+Logs)
+
+### C. Trazas Distribuidas (Jaeger)
+Seguimiento de una petición HTTP completa a través del sistema.
+
+> **Instrucciones**: Acceder a `http://localhost:16686`, servicio `transaction-validator`.
+
+*(Espacio para captura de pantalla del Waterfall de una traza)*
+![Trazas Jaeger](https://via.placeholder.com/800x300?text=Insertar+Captura+Jaeger+Trace)
+
+### D. Evidencia de Rollback Automático (Cero Downtime)
+Prueba técnica ejecutada mediante script de simulación de fallo (`scripts/test_rollback.js`). El sistema detecta una falla en la nueva versión (Green) y cancela el cambio de tráfico, manteniendo a los usuarios en la versión estable (Blue).
+
+**Log de Ejecución de Prueba de Rollback:**
+```text
+[DEPLOY] 🚀 Iniciando Despliegue...
+[DEPLOY] Color Activo: BLUE
+[DEPLOY] Objetivo de Despliegue: GREEN
+[DEPLOY] 📦 Levantando contenedor green...
+[DEPLOY] Contenedor green iniciado.
+[DEPLOY] 🏥 Ejecutando Health Check en green...
+[DEPLOY] ❌ ERROR: Health Check falló en green. (HTTP 500)
+[DEPLOY] ⚠️  Detectada falla crítica en la nueva versión.
+[DEPLOY] 🔄 Iniciando ROLLBACK automático...
+[DEPLOY] 🛑 Deteniendo contenedor defectuoso (green)...
+[DEPLOY] ✅ Rollback completado.
+[DEPLOY] 🛡️  El tráfico NO se ha modificado. Sigue apuntando a BLUE.
+[DEPLOY] Resultado: CERO DOWNTIME. Los usuarios no fueron afectados.
+```
+
+---
+
+## 7. Conclusión
 
 La solución implementada resuelve los problemas críticos de PayFlow MX:
 1.  **Latencia y Errores**: Mitigados mediante código optimizado y monitoreados en tiempo real con Prometheus/Grafana.
